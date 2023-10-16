@@ -94,12 +94,12 @@ foreach ($app in $appsToInstall) {
 
 }
 
-# Write-Header "Fetching GitHub Artifacts"
+Write-Header "Fetching GitHub Artifacts"
 
 #  Write-Host "Fetching Artifacts"
 # Invoke-WebRequest "https://raw.githubusercontent.com/microsoft/azure_arc/main/img/jumpstart_wallpaper.png" -OutFile $Env:AZMIGDir\wallpaper.png
 
-Write-Host "Fetching Artifacts"
+ Write-Host "Fetching Artifacts"
  Invoke-WebRequest "https://raw.githubusercontent.com/onurpekdag/migration-workshop/main/LogonScript.ps1" -OutFile $Env:AZMIGDir\LogonScript.ps1
 # Invoke-WebRequest ($Env:templateBaseUrl + "artifacts/installArcAgent.ps1") -OutFile $Env:AZMIGDir\agentScript\installArcAgent.ps1
 # Invoke-WebRequest ($Env:templateBaseUrl + "artifacts/installArcAgentSQL.ps1") -OutFile $Env:AZMIGDir\agentScript\installArcAgentSQL.ps1

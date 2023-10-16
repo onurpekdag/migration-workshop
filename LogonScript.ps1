@@ -4,15 +4,15 @@ $Env:AZMIGVMDir = "$Env:AZMIGDir\Virtual Machines"
 $Env:AZMIGIconDir = "$Env:AZMIGDir\Icons"
 #$agentScript = "$Env:AZMIGDir\agentScript"
 
-# Set variables to execute remote powershell scripts on guest VMs
-#$nestedVMAZMIGDir = $Env:AZMIGDir
-$spnClientId = $env:spnClientId
-$spnClientSecret = $env:spnClientSecret
-$spnTenantId = $env:spnTenantId
-$subscriptionId = $env:subscriptionId
-$azureLocation = $env:azureLocation
-$resourceGroup = $env:resourceGroup
-$azmig = ($env:azmig).toLower()
+# # Set variables to execute remote powershell scripts on guest VMs
+# #$nestedVMAZMIGDir = $Env:AZMIGDir
+# $spnClientId = $env:spnClientId
+# $spnClientSecret = $env:spnClientSecret
+# $spnTenantId = $env:spnTenantId
+# $subscriptionId = $env:subscriptionId
+# $azureLocation = $env:azureLocation
+# $resourceGroup = $env:resourceGroup
+# $azmig = ($env:azmig).toLower()
 
 # Archive exising log file and crate new one
 $logFilePath = "$Env:AZMIGLogsDir\ServersLogonScript.log"
@@ -116,15 +116,15 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
 
     $Env:AZURE_CONFIG_DIR = $cliDir.FullName
 
-    # Install Azure CLI extensions
-    Write-Host "Az CLI extensions"
-    az extension add --name ssh --yes --only-show-errors
-    az extension add --name log-analytics-solution --yes --only-show-errors
-    az extension add --name connectedmachine --yes --only-show-errors
+    # # Install Azure CLI extensions
+    # Write-Host "Az CLI extensions"
+    # az extension add --name ssh --yes --only-show-errors
+    # az extension add --name log-analytics-solution --yes --only-show-errors
+    # az extension add --name connectedmachine --yes --only-show-errors
 
     # Required for CLI commands
-    Write-Host "Az CLI Login"
-    az login --service-principal --username $Env:spnClientId --password $Env:spnClientSecret --tenant $Env:spnTenantId
+    # Write-Host "Az CLI Login"
+    # az login --service-principal --username $Env:spnClientId --password $Env:spnClientSecret --tenant $Env:spnTenantId
 
     # Register Azure providers
     # Write-Host "Registering Providers"

@@ -2,17 +2,10 @@ $Env:AZMIGDir = "C:\AZMIG"
 $Env:AZMIGLogsDir = "$Env:AZMIGDir\Logs"
 $Env:AZMIGVMDir = "$Env:AZMIGDir\Virtual Machines"
 $Env:AZMIGIconDir = "$Env:AZMIGDir\Icons"
-#$agentScript = "$Env:AZMIGDir\agentScript"
 
 # # Set variables to execute remote powershell scripts on guest VMs
-# #$nestedVMAZMIGDir = $Env:AZMIGDir
-# $spnClientId = $env:spnClientId
-# $spnClientSecret = $env:spnClientSecret
-# $spnTenantId = $env:spnTenantId
-# $subscriptionId = $env:subscriptionId
-# $azureLocation = $env:azureLocation
-# $resourceGroup = $env:resourceGroup
-# $azmig = ($env:azmig).toLower()
+
+$azmig = ($env:azmig).toLower()
 
 # Archive exising log file and crate new one
 $logFilePath = "$Env:AZMIGLogsDir\ServersLogonScript.log"
@@ -116,23 +109,12 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
 
     $Env:AZURE_CONFIG_DIR = $cliDir.FullName
 
-    # # Install Azure CLI extensions
+    Install Azure CLI extensions
     # Write-Host "Az CLI extensions"
-    # az extension add --name ssh --yes --only-show-errors
-    # az extension add --name log-analytics-solution --yes --only-show-errors
-    # az extension add --name connectedmachine --yes --only-show-errors
-
-    # Required for CLI commands
-    # Write-Host "Az CLI Login"
-    # az login --service-principal --username $Env:spnClientId --password $Env:spnClientSecret --tenant $Env:spnTenantId
-
-    # Register Azure providers
-    # Write-Host "Registering Providers"
-    # az provider register --namespace Microsoft.HybridCompute --wait --only-show-errors
-    # az provider register --namespace Microsoft.HybridConnectivity --wait --only-show-errors
-    # az provider register --namespace Microsoft.GuestConfiguration --wait --only-show-errors
-
-   
+    az extension add --name ssh --yes --only-show-errors
+    az extension add --name log-analytics-solution --yes --only-show-errors
+    az extension add --name connectedmachine --yes --only-show-errors
+ 
     if ( $azmig -eq "WS" -or $azmig -eq "ws" )
     {
         $imageName = "JSWin2K12Base"
@@ -191,16 +173,6 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
     Invoke-Command -ComputerName $vmName -ScriptBlock { Get-NetAdapter | Restart-NetAdapter } -Credential $winCreds
     Start-Sleep -Seconds 90
 
-    # # Copy installation script to nested Windows VMs
-    # Write-Host "Transferring installation script to nested Windows VMs..."
-    # Copy-VMFile $vmName -SourcePath "$agentScript\installArcAgent.ps1" -DestinationPath "$Env:AZMIGDir\installArcAgent.ps1" -CreateFullPath -FileSource Host -Force
-
-    # Write-Host "Onboarding servers"
-
-    # # Onboarding the nested VMs as Azure Arc-enabled servers
-    # Write-Host "Onboarding the nested Windows VMs as Azure Arc-enabled servers"
-    # Invoke-Command -ComputerName $vmName -ScriptBlock { powershell -File $Using:nestedVMAZMIGDir\installArcAgent.ps1 -spnClientId $Using:spnClientId, -spnClientSecret $Using:spnClientSecret, -spnTenantId $Using:spnTenantId, -subscriptionId $Using:subscriptionId, -resourceGroup $Using:resourceGroup, -azureLocation $Using:azureLocation } -Credential $winCreds
-
     }
 
     if ( $azmig -eq "SQL" -or $azmig -eq "sql" )
@@ -258,16 +230,7 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 20
     Invoke-Command -ComputerName $vmName -ScriptBlock { Get-NetAdapter | Restart-NetAdapter } -Credential $SQLCreds
     Start-Sleep -Seconds 90
-
-    # # Copy installation script to nested Windows VMs
-    # Write-Host "Transferring installation script to nested Windows VMs..."
-    # Copy-VMFile $vmName -SourcePath "$agentScript\installArcAgentSQL.ps1" -DestinationPath "$Env:AZMIGDir\installArcAgentSQL.ps1" -CreateFullPath -FileSource Host -Force
-
-    #  Write-Host "Onboarding servers"
-
-    #  Onboarding the nested VMs as Azure Arc-enabled servers
    
-
     }
 
     if ( $azmig -eq "both" -or $azmig -eq "BOTH" -or $azmig -eq "Both" )
@@ -343,86 +306,11 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
           Invoke-Command -ComputerName $site.Value.vmName -ScriptBlock { Get-NetAdapter | Restart-NetAdapter } -Credential $SQLCreds
             }
           Start-Sleep -Seconds 90
-      
-        #   # Copy installation script to nested Windows VMs
-
-        #   if ( $site.Value.type -eq "Windows")
-        #   {
-        #     Write-Host "Transferring installation script to nested Windows VMs..."
-        #     Copy-VMFile $site.Value.vmName -SourcePath "$agentScript\installArcAgent.ps1" -DestinationPath "$Env:AZMIGDir\installArcAgent.ps1" -CreateFullPath -FileSource Host -Force
-        #     Write-Host "Onboarding Arc-enabled servers"
-      
-        #     # Onboarding the nested VMs as Azure Arc-enabled servers
-        #     Write-Host "Onboarding the nested Windows VMs as Azure Arc-enabled servers"
-        #     Invoke-Command -ComputerName $site.Value.vmName -ScriptBlock { powershell -File $Using:nestedVMAZMIGDir\installArcAgent.ps1 -spnClientId $Using:spnClientId, -spnClientSecret $Using:spnClientSecret, -spnTenantId $Using:spnTenantId, -subscriptionId $Using:subscriptionId, -resourceGroup $Using:resourceGroup, -azureLocation $Using:azureLocation } -Credential $winCreds
-        #   }
-
-        #   if ( $site.Value.type -eq "SQL")
-        #   {
-        #     Write-Host "Transferring installation script to nested SQL VMs..."
-        #     Copy-VMFile $site.Value.vmName -SourcePath "$agentScript\installArcAgentSQL.ps1" -DestinationPath "$Env:AZMIGDir\installArcAgentSQL.ps1" -CreateFullPath -FileSource Host -Force
-        #     Write-Host "Onboarding Arc-enabled SQL Server"
-      
-        #     # Onboarding the nested VMs as Azure Arc-enabled SQL Server
-        #     Write-Host "Onboarding the nested SQL VMs as Azure Arc-enabled SQL server"
-        #     $vmName =  $site.Value.vmName
-        #     Invoke-Command -ComputerName $site.Value.vmName -ScriptBlock { powershell -File $Using:nestedVMAZMIGDir\installArcAgentSQL.ps1 -spnClientId $Using:spnClientId, -spnClientSecret $Using:spnClientSecret, -spnTenantId $Using:spnTenantId, -subscriptionId $Using:subscriptionId, -resourceGroup $Using:resourceGroup, -azureLocation $Using:azureLocation, -vmName $Using:vmName } -Credential $SQLCreds
-        #   }
          }
     }
-
-    
-
     # Removing the LogonScript Scheduled Task so it won't run on next reboot
     Write-Host "Removing Logon Task"
     if ($null -ne (Get-ScheduledTask -TaskName "LogonScript" -ErrorAction SilentlyContinue)) {
         Unregister-ScheduledTask -TaskName "LogonScript" -Confirm:$false
     }
-
-# # Changing to Jumpstart  wallpaper
-
-# $imgPath = "$Env:AZMIGDir\wallpaper.png"
-# $code = @' 
-# using System.Runtime.InteropServices; 
-# namespace Win32{ 
-    
-#     public class Wallpaper{ 
-#         [DllImport("user32.dll", CharSet=CharSet.Auto)] 
-#         static extern int SystemParametersInfo (int uAction , int uParam , string lpvParam , int fuWinIni) ; 
-        
-#         public static void SetWallpaper(string thePath){ 
-#             SystemParametersInfo(20,0,thePath,3); 
-#         }
-#     }
-# } 
-# '@
-
-#     Write-Host "Changing Wallpaper"
-#     $imgPath = "$Env:AZMIGDir\wallpaper.png"
-#     Add-Type $code
-#     [Win32.Wallpaper]::SetWallpaper($imgPath)
-
-function OpenPortsForWinRM
-{
-    Log-Info "Azure Migrate needs to enable In-bound WinRM traffic on Port(s): 5985, 5986"
-          
-    {
-        $Error.Clear()
-        New-NetFirewallRule -DisplayName 'WinRM Inbound' -Profile @('Domain', 'Private') -Direction Inbound -Action Allow -Protocol TCP -LocalPort @('5985', '5986')
-        if ($error.Count -gt 0)
-        {
-            Log-Error "Failed to allow WinRM Inbound traffic on ports: 5985, 5986`n"
-            exit 7
-        }
-        else
-        {
-            Log-Success "[Done]`n"
-        }
-    }
-    else
-    {
-        Log-Error "`User has selected not to allow inbound connection on WinRM port. Exiting..."
-        exit 7
-    }
-}
 Stop-Transcript

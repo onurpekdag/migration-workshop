@@ -5,7 +5,7 @@ $Env:AZMIGIconDir = "$Env:AZMIGDir\Icons"
 
 # # Set variables to execute remote powershell scripts on guest VMs
 
-$azmig = ($env:azmig).toLower()
+#$azmig = ($env:azmig).toLower()
 
 # Archive exising log file and crate new one
 $logFilePath = "$Env:AZMIGLogsDir\ServersLogonScript.log"
@@ -91,7 +91,7 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
     Write-Host "Creating Hyper-V Shortcut"
     Copy-Item -Path "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Administrative Tools\Hyper-V Manager.lnk" -Destination "C:\Users\All Users\Desktop" -Force
 
-    # Configure the AZMIG Hyper-V host to allow the nested VMs onboard as Azure Arc-enabled servers
+    # Configure the AZMIG Hyper-V host to allow the nested VMs onboard as Azure servers
     Write-Host "Blocking IMDS"
     Write-Host "Configure the AZMIG VM to allow the nested VMs onboard as Azure Arc-enabled servers"
     Set-Service WindowsAzureGuestAgent -StartupType Disabled -Verbose
@@ -109,7 +109,7 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
 
     $Env:AZURE_CONFIG_DIR = $cliDir.FullName
 
-    Install Azure CLI extensions
+    #Install Azure CLI extensions
     # Write-Host "Az CLI extensions"
     az extension add --name ssh --yes --only-show-errors
     az extension add --name log-analytics-solution --yes --only-show-errors

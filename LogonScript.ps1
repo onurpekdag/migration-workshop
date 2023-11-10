@@ -1,16 +1,24 @@
-$Env:AZMIGDir = "C:\AZMIG"
-$Env:AZMIGLogsDir = "$Env:AZMIGDir\Logs"
-$Env:AZMIGVMDir = "$Env:AZMIGDir\Virtual Machines"
-$Env:AZMIGIconDir = "$Env:AZMIGDir\Icons"
+$Env:azmigDir = "C:\azmig"
+$Env:azmigLogsDir = "$Env:azmigDir\Logs"
+$Env:azmigVMDir = "$Env:azmigDir\Virtual Machines"
+#$Env:azmigIconDir = "$Env:azmigDir\Icons"
+#$agentScript = "$Env:azmigDir\agentScript"
 
-# # Set variables to execute remote powershell scripts on guest VMs
+# Set variables to execute remote powershell scripts on guest VMs
+#$nestedVMazmigDir = $Env:azmigDir
+$spnClientId = $env:spnClientId
+$spnClientSecret = $env:spnClientSecret
+$spnTenantId = $env:spnTenantId
+$subscriptionId = $env:subscriptionId
+$azureLocation = $env:azureLocation
+$resourceGroup = $env:resourceGroup
+$azmig = ($env:azmig).toLower()
 
-#$azmig = ($env:azmig).toLower()
 
 # Archive exising log file and crate new one
-$logFilePath = "$Env:AZMIGLogsDir\ServersLogonScript.log"
+$logFilePath = "$Env:azmigLogsDir\ArcServersLogonScript.log"
 if ([System.IO.File]::Exists($logFilePath)) {
-    $archivefile = "$Env:AZMIGLogsDir\ServersLogonScript-" + (Get-Date -Format "yyyyMMddHHmmss")
+    $archivefile = "$Env:azmigLogsDir\ArcServersLogonScript-" + (Get-Date -Format "yyyyMMddHHmmss")
     Rename-Item -Path $logFilePath -NewName $archivefile -Force
 }
 
@@ -24,8 +32,8 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
     Write-Host "Configuring DHCP Service"
     $dnsClient = Get-DnsClient | Where-Object { $_.InterfaceAlias -eq "Ethernet" }
     $dhcpScope = Get-DhcpServerv4Scope
-    if ($dhcpScope.Name -ne "AZMIG") {
-        Add-DhcpServerv4Scope -Name "AZMIG" `
+    if ($dhcpScope.Name -ne "azmig") {
+        Add-DhcpServerv4Scope -Name "azmig" `
             -StartRange 10.10.1.100 `
             -EndRange 10.10.1.200 `
             -SubnetMask 255.255.255.0 `
@@ -72,11 +80,11 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
     Write-Host "Creating VM Credentials"
     # Hard-coded username and password for the nested Windows VMs
     $nestedWindowsUsername = "Administrator"
-    $nestedWindowsPassword = "MigDemo123!!"
+    $nestedWindowsPassword = "AzmigDemo123!!"
 
     # Hard-coded username and password for the nested SQL VMs
     $nestedSQLUsername = "Administrator"
-    $nestedSQLPassword = "MigDemo123!!"
+    $nestedSQLPassword = "AzmigDemo123!!"
    
 
     # Create Windows credential object
@@ -91,9 +99,9 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
     Write-Host "Creating Hyper-V Shortcut"
     Copy-Item -Path "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Administrative Tools\Hyper-V Manager.lnk" -Destination "C:\Users\All Users\Desktop" -Force
 
-    # Configure the AZMIG Hyper-V host to allow the nested VMs onboard as Azure servers
+    # Configure the azmig Hyper-V host to allow the nested VMs onboard as Azure Arc-enabled servers
     Write-Host "Blocking IMDS"
-    Write-Host "Configure the AZMIG VM to allow the nested VMs onboard as Azure Arc-enabled servers"
+    Write-Host "Configure the azmig VM to allow the nested VMs onboard as Azure Arc-enabled servers"
     Set-Service WindowsAzureGuestAgent -StartupType Disabled -Verbose
     Stop-Service WindowsAzureGuestAgent -Force -Verbose
 
@@ -101,7 +109,7 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
         New-NetFirewallRule -Name BlockAzureIMDS -DisplayName "Block access to Azure IMDS" -Enabled True -Profile Any -Direction Outbound -Action Block -RemoteAddress 169.254.169.254
     }
 
-    $cliDir = New-Item -Path "$Env:AZMIGDir\.cli\" -Name ".servers" -ItemType Directory -Force
+    $cliDir = New-Item -Path "$Env:azmigDir\.cli\" -Name ".servers" -ItemType Directory -Force
     if (-not $($cliDir.Parent.Attributes.HasFlag([System.IO.FileAttributes]::Hidden))) {
         $folder = Get-Item $cliDir.Parent.FullName -ErrorAction SilentlyContinue
         $folder.Attributes += [System.IO.FileAttributes]::Hidden
@@ -109,16 +117,27 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
 
     $Env:AZURE_CONFIG_DIR = $cliDir.FullName
 
-    #Install Azure CLI extensions
-    # Write-Host "Az CLI extensions"
+    # Install Azure CLI extensions
+    Write-Host "Az CLI extensions"
     az extension add --name ssh --yes --only-show-errors
     az extension add --name log-analytics-solution --yes --only-show-errors
     az extension add --name connectedmachine --yes --only-show-errors
- 
+
+    # Required for CLI commands
+    Write-Host "Az CLI Login"
+    az login --service-principal --username $Env:spnClientId --password $Env:spnClientSecret --tenant $Env:spnTenantId
+
+    # Register Azure providers
+    Write-Host "Registering Providers"
+    az provider register --namespace Microsoft.HybridCompute --wait --only-show-errors
+    az provider register --namespace Microsoft.HybridConnectivity --wait --only-show-errors
+    az provider register --namespace Microsoft.GuestConfiguration --wait --only-show-errors
+
+   
     if ( $azmig -eq "WS" -or $azmig -eq "ws" )
     {
         $imageName = "JSWin2K12Base"
-        $vmvhdPath = "$Env:AZMIGVMDir\${imageName}.vhdx"
+        $vmvhdPath = "$Env:azmigVMDir\${imageName}.vhdx"
         # Moved VHD storage account details here to keep only in place to prevent duplicates.
         $vhdDownload = "https://jsvhds.blob.core.windows.net/scenarios/prod/JSWin2K12Base.vhdx?sp=r&st=2023-09-11T08:05:53Z&se=2025-11-08T17:05:53Z&spr=https&sv=2022-11-02&sr=b&sig=zoVpd9AMzsTRRE0a7eLJYeFURexY4R9VSzOGKfLOx%2FQ%3D"
 
@@ -129,7 +148,7 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
         <# Action when all if and elseif conditions are false #>
         $Env:AZCOPY_BUFFER_GB = 4
         Write-Host "Downloading nested VMs VHDX file for VM. This can take some time, hold tight..."
-        azcopy copy $vhdDownload --include-pattern "${imageName}.vhdx" $Env:AZMIGVMDir --check-length=false --cap-mbps 1200 --log-level=ERROR
+        azcopy copy $vhdDownload --include-pattern "${imageName}.vhdx" $Env:azmigVMDir --check-length=false --cap-mbps 1200 --log-level=ERROR
     }
 
     # Create the nested VMs if not already created
@@ -141,7 +160,7 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
     Write-Host "Create VM"
     if ((Get-VM -Name $vmName -ErrorAction SilentlyContinue).State -ne "Running") {
         Remove-VM -Name $vmName -Force -ErrorAction SilentlyContinue
-        New-VM -Name $vmName -MemoryStartupBytes 12GB -BootDevice VHD -VHDPath $vmvhdPath -Path $Env:AZMIGVMDir -Generation 2 -Switch $switchName
+        New-VM -Name $vmName -MemoryStartupBytes 12GB -BootDevice VHD -VHDPath $vmvhdPath -Path $Env:azmigVMDir -Generation 2 -Switch $switchName
         Set-VMProcessor -VMName $vmName -Count 2
         Set-VM -Name $vmName -AutomaticStartAction Start -AutomaticStopAction ShutDown
     }
@@ -173,12 +192,22 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
     Invoke-Command -ComputerName $vmName -ScriptBlock { Get-NetAdapter | Restart-NetAdapter } -Credential $winCreds
     Start-Sleep -Seconds 90
 
+    # # Copy installation script to nested Windows VMs
+    # Write-Host "Transferring installation script to nested Windows VMs..."
+    # Copy-VMFile $vmName -SourcePath "$agentScript\installArcAgent.ps1" -DestinationPath "$Env:azmigDir\installArcAgent.ps1" -CreateFullPath -FileSource Host -Force
+
+    # Write-Host "Onboarding Arc-enabled servers"
+
+    # # Onboarding the nested VMs as Azure Arc-enabled servers
+    # Write-Host "Onboarding the nested Windows VMs as Azure Arc-enabled servers"
+    # Invoke-Command -ComputerName $vmName -ScriptBlock { powershell -File $Using:nestedVMazmigDir\installArcAgent.ps1 -spnClientId $Using:spnClientId, -spnClientSecret $Using:spnClientSecret, -spnTenantId $Using:spnTenantId, -subscriptionId $Using:subscriptionId, -resourceGroup $Using:resourceGroup, -azureLocation $Using:azureLocation } -Credential $winCreds
+
     }
 
     if ( $azmig -eq "SQL" -or $azmig -eq "sql" )
     {
         $imageName = "JSSQL12Base"
-        $vmvhdPath = "$Env:AZMIGVMDir\${imageName}.vhdx"
+        $vmvhdPath = "$Env:azmigVMDir\${imageName}.vhdx"
         # Moved VHD storage account details here to keep only in place to prevent duplicates.
         $vhdDownload = "https://jsvhds.blob.core.windows.net/scenarios/prod/JSSQL12Base.vhdx?sp=r&st=2023-09-27T06:57:38Z&se=2027-09-11T14:57:38Z&spr=https&sv=2022-11-02&sr=b&sig=BXtEL%2B7RdLairRHXd3TA6n5q%2FNktjItvcU1rzol9Dl0%3D"
 
@@ -189,7 +218,7 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
         <# Action when all if and elseif conditions are false #>
         $Env:AZCOPY_BUFFER_GB = 4
         Write-Host "Downloading nested VMs VHDX file for VM. This can take some time, hold tight..."
-        azcopy copy $vhdDownload --include-pattern "${imageName}.vhdx" $Env:AZMIGVMDir --check-length=false --cap-mbps 1200 --log-level=ERROR
+        azcopy copy $vhdDownload --include-pattern "${imageName}.vhdx" $Env:azmigVMDir --check-length=false --cap-mbps 1200 --log-level=ERROR
     }
 
     # Create the nested VMs if not already created
@@ -199,7 +228,7 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
     Write-Host "Create VM"
     if ((Get-VM -Name $vmName -ErrorAction SilentlyContinue).State -ne "Running") {
         Remove-VM -Name $vmName -Force -ErrorAction SilentlyContinue
-        New-VM -Name $vmName -MemoryStartupBytes 12GB -BootDevice VHD -VHDPath $vmvhdPath -Path $Env:AZMIGVMDir -Generation 2 -Switch $switchName
+        New-VM -Name $vmName -MemoryStartupBytes 12GB -BootDevice VHD -VHDPath $vmvhdPath -Path $Env:azmigVMDir -Generation 2 -Switch $switchName
         Set-VMProcessor -VMName $vmName -Count 2
         Set-VM -Name $vmName -AutomaticStartAction Start -AutomaticStopAction ShutDown
     }
@@ -230,7 +259,17 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 20
     Invoke-Command -ComputerName $vmName -ScriptBlock { Get-NetAdapter | Restart-NetAdapter } -Credential $SQLCreds
     Start-Sleep -Seconds 90
-   
+
+    # # Copy installation script to nested Windows VMs
+    # Write-Host "Transferring installation script to nested Windows VMs..."
+    # Copy-VMFile $vmName -SourcePath "$agentScript\installArcAgentSQL.ps1" -DestinationPath "$Env:azmigDir\installArcAgentSQL.ps1" -CreateFullPath -FileSource Host -Force
+
+    # Write-Host "Onboarding Arc-enabled servers"
+
+    # # Onboarding the nested VMs as Azure Arc-enabled servers
+    # Write-Host "Onboarding the nested Windows VMs as Azure Arc-enabled servers"
+    # Invoke-Command -ComputerName $vmName -ScriptBlock { powershell -File $Using:nestedVMazmigDir\installArcAgentSQL.ps1 -spnClientId $Using:spnClientId, -spnClientSecret $Using:spnClientSecret, -spnTenantId $Using:spnTenantId, -subscriptionId $Using:subscriptionId, -resourceGroup $Using:resourceGroup, -azureLocation $Using:azureLocation, -vmName $Using:vmName } -Credential $SQLCreds
+
     }
 
     if ( $azmig -eq "both" -or $azmig -eq "BOTH" -or $azmig -eq "Both" )
@@ -238,7 +277,7 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
         $SiteConfig = @{
             JSWin2K12Base = @{
                 imageName = 'JSWin2K12Base'
-                vmvhdPath = "$Env:AZMIGVMDir\JSWin2K12Base.vhdx"
+                vmvhdPath = "$Env:azmigVMDir\JSWin2K12Base.vhdx"
                 vhdDownload = "https://jsvhds.blob.core.windows.net/scenarios/prod/JSWin2K12Base.vhdx?sp=r&st=2023-09-11T08:05:53Z&se=2025-11-08T17:05:53Z&spr=https&sv=2022-11-02&sr=b&sig=zoVpd9AMzsTRRE0a7eLJYeFURexY4R9VSzOGKfLOx%2FQ%3D"
                 vmName = "JSWin2K12Base"
                 ip = "10.10.1.100"
@@ -246,7 +285,7 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
             }
             JSSQL12Base = @{
                 imageName = "JSSQL12Base"
-                vmvhdPath = "$Env:AZMIGVMDir\JSSQL12Base.vhdx"
+                vmvhdPath = "$Env:azmigVMDir\JSSQL12Base.vhdx"
                 vhdDownload = "https://jsvhds.blob.core.windows.net/scenarios/prod/JSSQL12Base.vhdx?sp=r&st=2023-09-27T06:57:38Z&se=2027-09-11T14:57:38Z&spr=https&sv=2022-11-02&sr=b&sig=BXtEL%2B7RdLairRHXd3TA6n5q%2FNktjItvcU1rzol9Dl0%3D"
                 vmName = "JSSQL12Base"
                 ip = "10.10.1.101"
@@ -254,9 +293,10 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
             }
     }
 
+
           Write-Host "Downloading nested VMs VHDX file for VM. This can take some time, hold tight..."
-          azcopy copy $SiteConfig.JSWin2K12Base.vhdDownload $Env:AZMIGVMDir --check-length=false --cap-mbps 1200 --log-level=ERROR
-          azcopy copy $SiteConfig.JSSQL12Base.vhdDownload $Env:AZMIGVMDir --check-length=false --cap-mbps 1200 --log-level=ERROR
+          azcopy copy $SiteConfig.JSWin2K12Base.vhdDownload $Env:azmigVMDir --check-length=false --cap-mbps 1200 --log-level=ERROR
+          azcopy copy $SiteConfig.JSSQL12Base.vhdDownload $Env:azmigVMDir --check-length=false --cap-mbps 1200 --log-level=ERROR
 
           foreach ($site in $SiteConfig.GetEnumerator()) {
           
@@ -268,7 +308,7 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
           Write-Host "Create VM"
           if ((Get-VM -Name $site.Value.vmName -ErrorAction SilentlyContinue).State -ne "Running") {
               Remove-VM -Name $site.Value.vmName -Force -ErrorAction SilentlyContinue
-              New-VM -Name $site.Value.vmName -MemoryStartupBytes 12GB -BootDevice VHD -VHDPath $site.Value.vmvhdPath -Path $Env:AZMIGVMDir -Generation 2 -Switch $switchName
+              New-VM -Name $site.Value.vmName -MemoryStartupBytes 12GB -BootDevice VHD -VHDPath $site.Value.vmvhdPath -Path $Env:azmigVMDir -Generation 2 -Switch $switchName
               Set-VMProcessor -VMName $site.Value.vmName -Count 2
               Set-VM -Name $site.Value.vmName -AutomaticStartAction Start -AutomaticStopAction ShutDown
           }
@@ -306,11 +346,64 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
           Invoke-Command -ComputerName $site.Value.vmName -ScriptBlock { Get-NetAdapter | Restart-NetAdapter } -Credential $SQLCreds
             }
           Start-Sleep -Seconds 90
-         }
+      
+          # Copy installation script to nested Windows VMs
+
+
+        #   if ( $site.Value.type -eq "Windows")
+        #   {
+        #     Write-Host "Transferring installation script to nested Windows VMs..."
+        #     Copy-VMFile $site.Value.vmName -SourcePath "$agentScript\installArcAgent.ps1" -DestinationPath "$Env:azmigDir\installArcAgent.ps1" -CreateFullPath -FileSource Host -Force
+        #     Write-Host "Onboarding Arc-enabled servers"
+      
+        #     # Onboarding the nested VMs as Azure Arc-enabled servers
+        #     Write-Host "Onboarding the nested Windows VMs as Azure Arc-enabled servers"
+        #     Invoke-Command -ComputerName $site.Value.vmName -ScriptBlock { powershell -File $Using:nestedVMazmigDir\installArcAgent.ps1 -spnClientId $Using:spnClientId, -spnClientSecret $Using:spnClientSecret, -spnTenantId $Using:spnTenantId, -subscriptionId $Using:subscriptionId, -resourceGroup $Using:resourceGroup, -azureLocation $Using:azureLocation } -Credential $winCreds
+        #   }
+
+        #   if ( $site.Value.type -eq "SQL")
+        #   {
+        #     Write-Host "Transferring installation script to nested SQL VMs..."
+        #     Copy-VMFile $site.Value.vmName -SourcePath "$agentScript\installArcAgentSQL.ps1" -DestinationPath "$Env:azmigDir\installArcAgentSQL.ps1" -CreateFullPath -FileSource Host -Force
+        #     Write-Host "Onboarding Arc-enabled SQL Server"
+      
+        #     # Onboarding the nested VMs as Azure Arc-enabled SQL Server
+        #     Write-Host "Onboarding the nested SQL VMs as Azure Arc-enabled SQL server"
+        #     $vmName =  $site.Value.vmName
+        #     Invoke-Command -ComputerName $site.Value.vmName -ScriptBlock { powershell -File $Using:nestedVMazmigDir\installArcAgentSQL.ps1 -spnClientId $Using:spnClientId, -spnClientSecret $Using:spnClientSecret, -spnTenantId $Using:spnTenantId, -subscriptionId $Using:subscriptionId, -resourceGroup $Using:resourceGroup, -azureLocation $Using:azureLocation, -vmName $Using:vmName } -Credential $SQLCreds
+        #  }
+        }
     }
+
+    
+
     # Removing the LogonScript Scheduled Task so it won't run on next reboot
     Write-Host "Removing Logon Task"
     if ($null -ne (Get-ScheduledTask -TaskName "LogonScript" -ErrorAction SilentlyContinue)) {
         Unregister-ScheduledTask -TaskName "LogonScript" -Confirm:$false
     }
+
+# # Changing to Jumpstart  wallpaper
+
+# $imgPath = "$Env:azmigDir\wallpaper.png"
+# $code = @' 
+# using System.Runtime.InteropServices; 
+# namespace Win32{ 
+    
+#     public class Wallpaper{ 
+#         [DllImport("user32.dll", CharSet=CharSet.Auto)] 
+#         static extern int SystemParametersInfo (int uAction , int uParam , string lpvParam , int fuWinIni) ; 
+        
+#         public static void SetWallpaper(string thePath){ 
+#             SystemParametersInfo(20,0,thePath,3); 
+#         }
+#     }
+# } 
+# '@
+
+#     Write-Host "Changing Wallpaper"
+#     $imgPath = "$Env:azmigDir\wallpaper.png"
+#     Add-Type $code
+#     [Win32.Wallpaper]::SetWallpaper($imgPath)
+
 Stop-Transcript

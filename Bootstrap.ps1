@@ -1,36 +1,56 @@
 param (
-
+    [string]$adminUsername,
+    [string]$adminPassword,
+    [string]$spnClientId,
+    [string]$spnClientSecret,
+    [string]$spnTenantId,
+    [string]$spnAuthority,
+    [string]$subscriptionId,
+    [string]$resourceGroup,
     [string]$templateBaseUrl,
     [string]$azureLocation,
     [string]$azmig
 )
 
+[System.Environment]::SetEnvironmentVariable('adminUsername', $adminUsername, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('adminPassword', $adminPassword, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('spnClientID', $spnClientId, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('spnClientSecret', $spnClientSecret, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('spnTenantId', $spnTenantId, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('spnAuthority', $spnAuthority, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('SPN_CLIENT_ID', $spnClientId, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('SPN_CLIENT_SECRET', $spnClientSecret, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('SPN_TENANT_ID', $spnTenantId, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('SPN_AUTHORITY', $spnAuthority, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('resourceGroup', $resourceGroup, [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('subscriptionId', $subscriptionId, [System.EnvironmentVariableTarget]::Machine)
 [System.Environment]::SetEnvironmentVariable('templateBaseUrl', $templateBaseUrl, [System.EnvironmentVariableTarget]::Machine)
 [System.Environment]::SetEnvironmentVariable('azureLocation', $azureLocation, [System.EnvironmentVariableTarget]::Machine)
-[System.Environment]::SetEnvironmentVariable('AZMIGDir', "C:\AZMIG", [System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('azmigDir', "C:\azmig", [System.EnvironmentVariableTarget]::Machine)
 [System.Environment]::SetEnvironmentVariable('azmig', $azmig, [System.EnvironmentVariableTarget]::Machine)
 
-# Creating AZMIG path
-Write-Host "Creating AZMIG path"
+# Creating azmig path
+Write-Host "Creating azmig path"
  
-$Env:AZMIGDir = "C:\AZMIG"
-$Env:AZMIGLogsDir = "$Env:AZMIGDir\Logs"
-$Env:AZMIGVMDir = "$Env:AZMIGDir\Virtual Machines"
-# $Env:AZMIGIconDir = "$Env:AZMIGDir\Icons"
-$Env:agentScript = "$Env:AZMIGDir\agentScript"
+$Env:azmigDir = "C:\azmig"
+$Env:azmigLogsDir = "$Env:azmigDir\Logs"
+$Env:azmigVMDir = "$Env:azmigDir\Virtual Machines"
+$Env:azmigIconDir = "$Env:azmigDir\Icons"
+$Env:agentScript = "$Env:azmigDir\agentScript"
 $Env:ToolsDir = "C:\Tools"
 $Env:tempDir = "C:\Temp"
 
-New-Item -Path $Env:AZMIGDir -ItemType directory -Force
-New-Item -Path $Env:AZMIGLogsDir -ItemType directory -Force
-New-Item -Path $Env:AZMIGVMDir -ItemType directory -Force
-New-Item -Path $Env:AZMIGKVDir -ItemType directory -Force
-New-Item -Path $Env:AZMIGIconDir -ItemType directory -Force
+New-Item -Path $Env:azmigDir -ItemType directory -Force
+New-Item -Path $Env:azmigLogsDir -ItemType directory -Force
+New-Item -Path $Env:azmigVMDir -ItemType directory -Force
+New-Item -Path $Env:azmigKVDir -ItemType directory -Force
+New-Item -Path $Env:azmigIconDir -ItemType directory -Force
 New-Item -Path $Env:ToolsDir -ItemType Directory -Force
 New-Item -Path $Env:tempDir -ItemType directory -Force
 New-Item -Path $Env:agentScript -ItemType directory -Force
 
-Start-Transcript -Path $Env:AZMIGLogsDir\Bootstrap.log
+
+Start-Transcript -Path $Env:azmigLogsDir\Bootstrap.log
 
 $ErrorActionPreference = 'SilentlyContinue'
 
@@ -77,8 +97,14 @@ foreach ($app in $appsToInstall) {
 
 Write-Header "Fetching GitHub Artifacts"
 
- Write-Host "Fetching Artifacts"
- Invoke-WebRequest "https://raw.githubusercontent.com/onurpekdag/migration-workshop/main/LogonScript.ps1" -OutFile $Env:AZMIGDir\LogonScript.ps1
+#Write-Host "Fetching Artifacts"
+#Invoke-WebRequest "https://raw.githubusercontent.com/microsoft/azure_arc/main/img/jumpstart_wallpaper.png" -OutFile $Env:azmigDir\wallpaper.png
+
+Write-Host "Fetching Artifacts"
+Invoke-WebRequest "https://raw.githubusercontent.com/onurpekdag/migration-workshop/main/LogonScript.ps1" -OutFile $Env:AZMIGDir\LogonScript.ps1
+#Invoke-WebRequest ($Env:templateBaseUrl + "artifacts/installArcAgent.ps1") -OutFile $Env:azmigDir\agentScript\installArcAgent.ps1
+#Invoke-WebRequest ($Env:templateBaseUrl + "artifacts/installArcAgentSQL.ps1") -OutFile $Env:azmigDir\agentScript\installArcAgentSQL.ps1
+
 
 # Disable Microsoft Edge sidebar
 $RegistryPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
@@ -138,7 +164,7 @@ if (($rdpPort -ne $null) -and ($rdpPort -ne "") -and ($rdpPort -ne "3389"))
 Write-Header "Configuring Logon Scripts"
  # Creating scheduled task 
     $Trigger = New-ScheduledTaskTrigger -AtLogOn
-    $Action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument $Env:AZMIGDir\LogonScript.ps1
+    $Action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument $Env:azmigDir\LogonScript.ps1
     Register-ScheduledTask -TaskName "LogonScript" -Trigger $Trigger -User $adminUsername -Action $Action -RunLevel "Highest" -Force
 
     # Install Hyper-V and reboot
@@ -150,5 +176,5 @@ Write-Header "Configuring Logon Scripts"
     # Clean up Bootstrap.log
     Write-Host "Clean up Bootstrap.log"
     Stop-Transcript
-    $logSuppress = Get-Content $Env:AZMIGLogsDir\Bootstrap.log | Where-Object { $_ -notmatch "Host Application: powershell.exe" }
-    $logSuppress | Set-Content $Env:AZMIGLogsDir\Bootstrap.log -Force
+    $logSuppress = Get-Content $Env:azmigLogsDir\Bootstrap.log | Where-Object { $_ -notmatch "Host Application: powershell.exe" }
+    $logSuppress | Set-Content $Env:azmigLogsDir\Bootstrap.log -Force

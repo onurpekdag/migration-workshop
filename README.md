@@ -1,4 +1,4 @@
-**Lift&Shift migration use case In-Place Upgrade & Extended Security Update with Azure Bicep Nested Virtualized Hyper-V Environment to Azure Migrate**
+**Lift&Shift  In-Place Upgrade & Extended Security Update migration use case with Azure Bicep Nested Virtualized Hyper-V Environment to Azure Migrate**
 
 **Agenda**
 

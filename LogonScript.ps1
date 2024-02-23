@@ -79,11 +79,11 @@ Start-Transcript -Path $logFilePath -Force -ErrorAction SilentlyContinue
 
     Write-Host "Creating VM Credentials"
     # Hard-coded username and password for the nested Windows VMs
-    $nestedWindowsUsername = "Administrator"
+    $nestedWindowsUsername = "azmiguser"
     $nestedWindowsPassword = "AzmigDemo123!!"
 
     # Hard-coded username and password for the nested SQL VMs
-    $nestedSQLUsername = "Administrator"
+    $nestedSQLUsername = "azmiguser"
     $nestedSQLPassword = "AzmigDemo123!!"
    
 
